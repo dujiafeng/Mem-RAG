@@ -8,11 +8,11 @@ from typing import Optional
 # 核心导入
 from pymilvus import connections, MilvusClient
 from langchain_community.embeddings import DashScopeEmbeddings
-from langchain_experimental.text_splitter import SemanticChunker
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.core import config_data as config
 from app.core.logger import logger
+from app.core.text_splitter import SmartTextSplitter
 from app.models.models import Base, KnowledgeFile
 
 os.environ["DASHSCOPE_API_KEY"] = config.DASHSCOPE_API_KEY
@@ -45,12 +45,13 @@ class KnowledgeBaseService:
         except Exception as e:
             logger.error(f"[Error] 引擎启动失败: {e}")
 
-        # 2. 初始化语义分割器
-        logger.info("[Splitter] 加载语义分割器...")
-        self.splitter = SemanticChunker(
-            self.embeddings,
+        # 2. 初始化智能文本分块器（自动选择分块策略）
+        logger.info("[Splitter] 加载智能文本分块器...")
+        self.splitter = SmartTextSplitter(
+            embeddings=self.embeddings,
+            chunk_size=config.MAX_SPLIT_CHAR_NUMBER,
             breakpoint_threshold_type=config.BREAKPOINT_TYPE,
-            buffer_size=config.BUFFER_SIZE
+            buffer_size=config.BUFFER_SIZE,
         )
         self.bm25_corpus = self._load_bm25_corpus()
 
@@ -253,8 +254,8 @@ class KnowledgeBaseService:
         if self.check_md5(md5_hex):
             return "【跳过】内容已在库中"
 
-        # 1. 语义分割
-        logger.info("[Semantic Split] 正在执行语义分割...")
+        # 1. 智能文本分块（自动选择最佳分块策略）
+        logger.info("[Splitter] 正在智能分块...")
         knowledge_chunks = self.splitter.split_text(data)
 
         # 2. 写入 Milvus（带上 user_id 和 is_shared 字段）
