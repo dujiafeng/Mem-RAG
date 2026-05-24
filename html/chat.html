@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 智能助手 - 对话</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #6366f1, #8b5cf6); border-radius: 10px; }
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .slide-up { animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .message-user { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .message-bot { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.3s ease; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); }
+        .input-focus:focus { box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2); }
+        .session-item { transition: all 0.2s ease; }
+        .session-item:hover { transform: translateX(5px); }
+        .typing-indicator span { animation: typing 1.4s infinite; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-10px); } }
+        /* Markdown */
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { font-weight: 600; margin-top: 1em; margin-bottom: 0.5em; }
+        .markdown-body h1 { font-size: 1.5em; }
+        .markdown-body h2 { font-size: 1.3em; }
+        .markdown-body h3 { font-size: 1.1em; }
+        .markdown-body p { margin-bottom: 0.75em; line-height: 1.7; }
+        .markdown-body ul, .markdown-body ol { padding-left: 1.5em; margin-bottom: 0.75em; }
+        .markdown-body li { margin-bottom: 0.25em; }
+        .markdown-body code { background: #f1f5f9; padding: 0.2em 0.4em; border-radius: 4px; font-size: 0.9em; font-family: 'Consolas', 'Monaco', monospace; }
+        .markdown-body pre { background: #1e293b; color: #e2e8f0; padding: 1em; border-radius: 12px; overflow-x: auto; margin-bottom: 1em; }
+        .markdown-body pre code { background: transparent; padding: 0; color: inherit; font-size: 0.85em; }
+        .markdown-body blockquote { border-left: 4px solid #6366f1; padding-left: 1em; color: #64748b; margin-bottom: 0.75em; }
+        .markdown-body table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
+        .markdown-body th, .markdown-body td { border: 1px solid #e2e8f0; padding: 0.5em 0.75em; text-align: left; }
+        .markdown-body th { background: #f8fafc; font-weight: 600; }
+        .markdown-body a { color: #6366f1; text-decoration: underline; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
+    <div id="app" class="h-screen flex overflow-hidden">
+
+        <!-- 侧边栏 -->
+        <aside class="w-80 bg-white/80 backdrop-blur-xl border-r border-slate-200/50 flex flex-col shadow-xl">
+            <div class="p-6 border-b border-slate-200/50">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <span class="font-bold text-xl gradient-text">AI Chat</span>
+                    </div>
+                    <div class="flex gap-1">
+                        <button class="p-2 rounded-lg bg-indigo-100 text-indigo-600" title="对话">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                            </svg>
+                        </button>
+                        <button onclick="window.location.href='/html/kb.html'" class="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-all" title="知识库">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 会话列表 -->
+            <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-2">
+                <div v-for="item in sessions" :key="item.session_id"
+                     @click="loadChatHistory(item.session_id)"
+                     :class="['session-item p-4 rounded-2xl cursor-pointer group flex justify-between items-center',
+                              currentSessionId === item.session_id ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg' : 'bg-slate-50 hover:bg-slate-100']">
+                    <div class="truncate pr-2 flex-1">
+                        <div class="font-medium truncate text-sm">{{ item.title }}</div>
+                        <div :class="['text-xs mt-1', currentSessionId === item.session_id ? 'text-white/70' : 'text-slate-400']">{{ item.update_time }}</div>
+                    </div>
+                    <button @click.stop="handleDeleteSession(item.session_id)"
+                            :class="['opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg',
+                                    currentSessionId === item.session_id ? 'hover:bg-white/20 text-white' : 'hover:bg-red-100 text-red-500']">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div v-if="sessions.length === 0" class="text-center py-10 text-slate-400">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                    <p class="text-sm">暂无对话记录</p>
+                </div>
+            </div>
+
+            <!-- 底部 -->
+            <div class="p-4 border-t border-slate-200/50 space-y-2">
+                <button @click="startNewChat"
+                        class="w-full btn-primary text-white py-3 rounded-2xl font-semibold flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    新对话
+                </button>
+                <div class="bg-slate-50 rounded-2xl p-4 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                            {{ username ? username[0].toUpperCase() : 'U' }}
+                        </div>
+                        <span class="font-medium text-slate-700">{{ username }}</span>
+                    </div>
+                    <button onclick="handleLogout()" class="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主聊天区域 -->
+        <main class="flex-1 flex flex-col bg-transparent">
+            <div id="chatWindow" class="flex-1 overflow-y-auto p-8 space-y-6 custom-scroll">
+                <div v-if="messages.length === 0" class="h-full flex flex-col items-center justify-center">
+                    <div class="w-24 h-24 rounded-3xl gradient-bg flex items-center justify-center mb-6 pulse-glow" style="animation: pulseGlow 2s ease-in-out infinite;">
+                        <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-bold gradient-text mb-2">开始新的对话</h3>
+                    <p class="text-slate-400 text-sm">在下方输入框中输入您的问题</p>
+                </div>
+
+                <template v-for="(msg, index) in messages" :key="index">
+                    <div v-if="msg.role === 'bot' && index === messages.length - 1 && currentStatus" class="w-full mb-4 mt-2">
+                        <div class="flex justify-start gap-2 fade-in">
+                            <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white flex-shrink-0">📋</div>
+                            <div class="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">{{ currentStatus }} <span class="ml-1">✅</span></div>
+                        </div>
+                    </div>
+
+                    <div :class="['flex gap-4', msg.role === 'user' ? 'justify-end' : 'justify-start', 'fade-in']">
+                        <div v-if="msg.role === 'bot'" class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white flex-shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                            </svg>
+                        </div>
+
+                        <div :class="['max-w-[70%] px-6 py-4 rounded-3xl text-sm shadow-lg',
+                                     msg.role === 'user' ? 'message-user text-white rounded-br-lg' :
+                                     'message-bot text-slate-700 rounded-bl-lg border border-slate-200/50']">
+                            <div v-if="msg.role === 'user'" class="whitespace-pre-wrap font-sans leading-relaxed">{{ msg.content }}</div>
+                            <div v-else class="markdown-body leading-relaxed" v-html="renderMarkdown(msg.content)"></div>
+                            <div v-if="msg.role === 'bot' && msg.content === ''" class="typing-indicator flex gap-1 py-2">
+                                <span class="w-2 h-2 bg-indigo-400 rounded-full"></span>
+                                <span class="w-2 h-2 bg-indigo-400 rounded-full"></span>
+                                <span class="w-2 h-2 bg-indigo-400 rounded-full"></span>
+                            </div>
+                        </div>
+
+                        <div v-if="msg.role === 'user'" class="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white flex-shrink-0 font-bold">
+                            {{ username ? username[0].toUpperCase() : 'U' }}
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="p-6">
+                <div class="max-w-4xl mx-auto">
+                    <div class="bg-white rounded-3xl shadow-xl border border-slate-200/50 p-2 flex gap-2 items-end">
+                        <textarea v-model="userInput"
+                                  @keydown.enter.prevent="handleSendMessage"
+                                  rows="1"
+                                  placeholder="输入您的问题..."
+                                  class="flex-1 bg-transparent border-none focus:ring-0 text-slate-700 p-3 resize-none placeholder-slate-400"></textarea>
+                        <button @click="handleSendMessage" :disabled="loading || !userInput.trim()"
+                                class="btn-primary text-white p-4 rounded-2xl disabled:opacity-50 disabled:transform-none flex items-center justify-center min-w-[56px]">
+                            <svg v-if="!loading" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            </svg>
+                            <div v-else class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        </button>
+                    </div>
+                    <p class="text-center text-xs text-slate-400 mt-3">按 Enter 发送消息</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, nextTick } = Vue;
+        const API_BASE = "http://localhost:8000";
+        axios.defaults.withCredentials = true;
+
+        function handleLogout() {
+            document.cookie = "session_id=; Max-Age=0; path=/;";
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('username');
+            window.location.href = '/html/login.html';
+        }
+
+        createApp({
+            setup() {
+                const loading = ref(false);
+                const currentStatus = ref('');
+                const username = ref('');
+                const sessions = ref([]);
+                const messages = ref([]);
+                const currentSessionId = ref(null);
+                const userInput = ref("");
+
+                const fetchSessions = async () => {
+                    try {
+                        const res = await axios.get(`${API_BASE}/sessions`);
+                        sessions.value = [...res.data.data];
+                    } catch (e) {
+                        if (e.response?.status === 401) window.location.href = '/html/login.html';
+                    }
+                };
+
+                const loadChatHistory = async (uuid) => {
+                    currentSessionId.value = uuid;
+                    try {
+                        const res = await axios.get(`${API_BASE}/chat/${uuid}`);
+                        messages.value = res.data.data.flatMap(m => [
+                            { role: 'user', content: m.user_input },
+                            { role: 'bot', content: m.raw_output }
+                        ]);
+                        scrollToBottom();
+                    } catch (e) { alert("加载失败"); }
+                };
+
+                const handleSendMessage = async () => {
+                    const text = userInput.value.trim();
+                    if (!text || loading.value) return;
+                    userInput.value = "";
+                    loading.value = true;
+
+                    let isNew = false;
+                    if (!currentSessionId.value) {
+                        isNew = true;
+                        try {
+                            const res = await axios.post(`${API_BASE}/sessions`);
+                            currentSessionId.value = res.data.data.session_id;
+                        } catch (e) {
+                            alert("创建会话失败");
+                            loading.value = false;
+                            return;
+                        }
+                    }
+
+                    messages.value.push({ role: 'user', content: text });
+                    const botIdx = messages.value.push({ role: 'bot', content: '' }) - 1;
+                    scrollToBottom();
+
+                    try {
+                        const response = await fetch(`${API_BASE}/chat`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session_uuid: currentSessionId.value, input_text: text })
+                        });
+
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let buffer = '';
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            const chunk = decoder.decode(value);
+                            buffer += chunk;
+
+                            while (buffer.length > 0) {
+                                const statusIndex = buffer.indexOf('[状态]');
+                                if (statusIndex !== -1) {
+                                    const beforeStatus = buffer.substring(0, statusIndex);
+                                    if (beforeStatus.trim()) messages.value[botIdx].content += beforeStatus;
+
+                                    const statusEndIndex = buffer.indexOf('\n', statusIndex);
+                                    if (statusEndIndex !== -1) {
+                                        const statusText = buffer.substring(statusIndex, statusEndIndex).replace(/\[状态\]\s*/, '').trim();
+                                        currentStatus.value = statusText;
+                                        let nextIndex = statusEndIndex + 1;
+                                        while (nextIndex < buffer.length && (buffer[nextIndex] === ' ' || buffer[nextIndex] === '\n' || buffer[nextIndex] === '\t')) nextIndex++;
+                                        buffer = buffer.substring(nextIndex);
+                                    } else { break; }
+                                } else {
+                                    messages.value[botIdx].content += buffer;
+                                    buffer = '';
+                                }
+                            }
+                            scrollToBottom();
+                        }
+
+                        if (buffer.trim()) messages.value[botIdx].content += buffer;
+                        setTimeout(() => { currentStatus.value = ''; }, 1000);
+
+                        if (isNew) {
+                            await fetchSessions();
+                            let count = 0;
+                            const checkTitle = setInterval(async () => {
+                                await fetchSessions();
+                                count++;
+                                const cur = sessions.value.find(s => s.session_id === currentSessionId.value);
+                                if ((cur && cur.title !== '新对话') || count >= 10) clearInterval(checkTitle);
+                            }, 800);
+                        } else { fetchSessions(); }
+                    } catch (e) {
+                        messages.value[botIdx].content = "连接失败，请检查网络";
+                    } finally { loading.value = false; }
+                };
+
+                const startNewChat = () => {
+                    currentSessionId.value = null;
+                    messages.value = [];
+                    userInput.value = "";
+                };
+
+                const handleDeleteSession = async (uuid) => {
+                    if (confirm("确定要删除这个对话吗？")) {
+                        await axios.delete(`${API_BASE}/delete/${uuid}`);
+                        if (currentSessionId.value === uuid) startNewChat();
+                        fetchSessions();
+                    }
+                };
+
+                const scrollToBottom = () => nextTick(() => {
+                    const b = document.getElementById('chatWindow');
+                    if (b) b.scrollTop = b.scrollHeight;
+                });
+
+                const renderMarkdown = (content) => {
+                    if (!content) return '';
+                    marked.setOptions({ breaks: true, gfm: true });
+                    return marked.parse(content);
+                };
+
+                onMounted(async () => {
+                    try {
+                        await axios.get(`${API_BASE}/auth/me`);
+                    } catch (e) {
+                        window.location.href = '/html/login.html';
+                        return;
+                    }
+                    username.value = localStorage.getItem('username') || '用户';
+                    await fetchSessions();
+                });
+
+                return {
+                    loading, currentStatus, username,
+                    sessions, currentSessionId, messages, userInput,
+                    loadChatHistory, handleSendMessage, startNewChat, handleDeleteSession,
+                    renderMarkdown, handleLogout
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
