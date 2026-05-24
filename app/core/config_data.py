@@ -2,7 +2,7 @@
 import os
 
 # 基础配置
-DASHSCOPE_API_KEY = 'sk-8717614346e54631a44de54736d898b6'  # 请替换为实际的 Key
+DASHSCOPE_API_KEY = 'sk-你的DashScope_API_KEY'  # ← 替换为你的真实 Key
 EMBEDDINGS_MODEL = "text-embedding-v4"
 
 # Milvus 配置 (使用 Milvus Lite 本地文件模式)
