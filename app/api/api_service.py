@@ -315,19 +315,27 @@ async def upload_knowledge(
     session_id: str = Cookie(None),
     db: AsyncSession = Depends(get_db)
 ):
-    """上传知识库文件"""
+    """上传知识库文件（支持 txt / pdf / docx / pptx / xlsx 等格式）"""
     user = await get_current_user(session_id, db)
 
-    if not file.filename.endswith(".txt"):
-        raise HTTPException(status_code=400, detail="仅支持 .txt 文件")
+    # 校验文件扩展名
+    allowed_exts = {".txt", ".pdf", ".docx", ".doc", ".pptx", ".xlsx"}
+    ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
+    if ext not in allowed_exts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的文件格式: {ext}，支持的格式: {', '.join(allowed_exts)}"
+        )
 
     try:
-        content = (await file.read()).decode("utf-8")
-    except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="文件编码错误，请使用 UTF-8 编码")
+        file_bytes = await file.read()
+        if not file_bytes:
+            raise HTTPException(status_code=400, detail="文件内容为空")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"文件读取失败: {e}")
 
     share_flag = is_shared.lower() == "true"
-    result = kb_service.upload_by_str(content, file.filename, user_id=user.id, is_shared=share_flag)
+    result = kb_service.upload_file(file_bytes, file.filename, user_id=user.id, is_shared=share_flag)
 
     if result.startswith("【失败】"):
         raise HTTPException(status_code=500, detail=result)

@@ -1,7 +1,9 @@
 import os
 import pickle
 import hashlib
+import json
 import time
+import tempfile
 from datetime import datetime
 from typing import Optional
 
@@ -34,6 +36,13 @@ def get_sync_session():
 class KnowledgeBaseService:
     def __init__(self):
         logger.info("[System] 初始化 KnowledgeBaseService...")
+
+        # 修复：DashScope SDK 的 User-Agent 可能包含非 ASCII 字符（如中文 Windows 平台信息），
+        # 导致 urllib3 发 HTTP 请求时 http.client.putheader() latin-1 编码失败。
+        import dashscope.common.utils as dashscope_utils
+        _orig_ua = dashscope_utils.get_user_agent
+        dashscope_utils.get_user_agent = lambda: _orig_ua().encode('ascii', errors='replace').decode('ascii')
+
         self.embeddings = DashScopeEmbeddings(model=config.EMBEDDINGS_MODEL)
 
         # 1. 显式初始化本地 Milvus 引擎
@@ -239,6 +248,65 @@ class KnowledgeBaseService:
         finally:
             db.close()
 
+    @staticmethod
+    def _extract_text_from_file(file_bytes: bytes, filename: str) -> str:
+        """
+        使用 docling 从 PDF / Word 文件中提取文本。
+        返回纯文本内容；若无法提取则抛出 ValueError。
+        """
+        ext = os.path.splitext(filename)[1].lower()
+
+        if ext == ".txt":
+            return file_bytes.decode("utf-8")
+
+        # docling 支持的格式：pdf, docx, pptx, xlsx, 图片等
+        supported_exts = {".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".png", ".jpg", ".jpeg"}
+        if ext not in supported_exts:
+            raise ValueError(f"不支持的文件格式: {ext}，支持的格式: txt, pdf, docx, doc, pptx, xlsx")
+
+        from docling.document_converter import DocumentConverter
+
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+                tmp.write(file_bytes)
+                tmp_path = tmp.name
+
+            converter = DocumentConverter()
+            result = converter.convert(tmp_path)
+            text = result.document.export_to_text()
+            if not text.strip():
+                raise ValueError(f"docling 未能从 {filename} 提取到任何文本内容")
+
+            # 净化文本：NFKC 归一化 + 剔除 pymilvus gRPC 无法序列化的控制字符
+            import unicodedata
+            text = unicodedata.normalize('NFKC', text)
+            # 保留常见可打印字符，剔除 latin-1 范围外的控制字符
+            text = ''.join(c if unicodedata.category(c) != 'Cc' or c in '\n\r\t' else ' ' for c in text)
+            return text
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    def upload_file(self, file_bytes: bytes, filename: str, user_id: int = 0, is_shared: bool = False):
+        """
+        上传知识库文件（支持 txt / pdf / docx 等格式）。
+        内部使用 docling 提取文本后复用 upload_by_str 的逻辑。
+        """
+        logger.info(f"[Upload] 开始处理文件: {filename} (size={len(file_bytes)} bytes, user_id={user_id})")
+
+        try:
+            text = self._extract_text_from_file(file_bytes, filename)
+        except UnicodeDecodeError:
+            return "【失败】文件编码错误，请使用 UTF-8 编码的文本文件"
+        except ValueError as e:
+            return f"【失败】{e}"
+        except Exception as e:
+            logger.error(f"[Upload] 文本提取失败: {e}")
+            return f"【失败】文本提取失败: {e}"
+
+        return self.upload_by_str(text, filename, user_id=user_id, is_shared=is_shared)
+
     def upload_by_str(self, data: str, filename: str, user_id: int = 0, is_shared: bool = False):
         """
         上传知识库内容
@@ -294,12 +362,16 @@ class KnowledgeBaseService:
                 for v, t in zip(vectors, knowledge_chunks)
             ]
 
+            # JSON 序列化归一化：强制所有字符串通过 UTF-8 编码的 JSON 通道，
+            # 避免 pymilvus gRPC latin-1 编码错误
+            data_to_insert = json.loads(json.dumps(data_to_insert, ensure_ascii=False))
+
             client.insert(collection_name=config.COLLECTION_NAME, data=data_to_insert)
             client.close()
             logger.info(f"[Storage] 成功存入 {len(data_to_insert)} 条数据！")
 
         except Exception as e:
-            logger.error(f"[Error] 写入失败: {e}")
+            logger.error(f"[Error] 写入失败: {e}", exc_info=True)
             return f"【失败】{e}"
 
         # 3. 保存原始文件到磁盘（用于预览）

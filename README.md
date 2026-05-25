@@ -7,11 +7,13 @@
 │   ├── api/            # API 服务
 │   │   └── api_service.py
 │   ├── core/           # 核心功能
+│   │   ├── app_file_uploder.py
 │   │   ├── config_data.py
 │   │   ├── knowledge_base.py
 │   │   ├── logger.py
 │   │   ├── prompts.py
 │   │   ├── rag.py
+│   │   ├── text_splitter.py
 │   │   └── vector_stores.py
 │   ├── models/         # 数据库模型
 │   │   └── models.py
@@ -36,7 +38,8 @@
 
 ## 核心功能
 1. 知识库管理：
-    - 支持 .txt 文件上传和内容添加
+    - 支持 .txt / .pdf / .docx / .doc / .pptx / .xlsx 文件上传
+    - 使用 Docling 自动提取 PDF、Word、PPT、Excel 等文档的文本内容
     - 语义分割和向量化存储
     - MD5 去重（MySQL 存储）
     - **个人知识库隔离**：每个用户仅检索自己的文件和公共知识库
@@ -63,13 +66,14 @@
 - 后端：FastAPI, SQLAlchemy, Milvus
 - 前端：Vue 3, Tailwind CSS
 - AI 模型：阿里云 DashScope（通义千问）
+- 文档解析：Docling（支持 PDF / Word / PPT / Excel 等格式文本提取）
 - 向量存储：Milvus（Standalone）
 - 检索策略：语义分割 + RRF 倒数秩融合
 
 ## 环境要求
 - Python >= 3.14
 - MySQL 8.0+
-- 依赖详见 `pyproject.toml`
+- 依赖详见 `pyproject.toml`，额外安装 `docling` 用于 PDF/Word 文档解析
 
 ## 运行准备
 
@@ -111,7 +115,7 @@ uv run python -m app.api.api_service
 ## 使用说明
 1. 注册/登录：首次使用需要注册账号
 2. 创建对话：登录后自动进入聊天页，点击底部"新对话"按钮
-3. 上传文件：点击侧边栏顶部 📁 图标进入知识库管理页面上传文件
+3. 上传文件：点击侧边栏顶部 📁 图标进入知识库管理页面上传文件（支持 txt / pdf / docx / pptx）
 4. 知识库管理：可查看/删除/共享自己的文件，查看公共知识库
 5. 文件预览：在我的文件或公共知识库中点击"预览"查看文件内容
 6. 提问：在聊天页输入框中输入问题，按 Enter 发送
@@ -307,10 +311,10 @@ Content-Type：`multipart/form-data`
 
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| file | file | 是 | .txt 文件（UTF-8 编码） |
+| file | file | 是 | 文件（支持 .txt / .pdf / .docx / .doc / .pptx / .xlsx） |
 | is_shared | string | 否 | "true" 则分享到公共知识库 |
 
-说明：自动计算 MD5 去重，重复内容跳过。
+说明：自动计算 MD5 去重，重复内容跳过。非文本格式（PDF/Word 等）通过 Docling 自动提取文本后处理。
 
 ---
 
@@ -422,8 +426,9 @@ Content-Type：`multipart/form-data`
    ```bash
    netstat -ano | findstr :8000
    ```
-3. 文件上传失败：确认文件为 .txt 格式、UTF-8 编码
-4. 检索结果不准确：尝试调整 `config_data.py` 中的混合检索权重参数
+3. 文件上传失败：确认文件格式为 txt / pdf / docx / doc / pptx / xlsx 之一，并安装 `docling`（`pip install docling`）
+4. 非 txt 文件上传报 `latin-1` 编码错误：安装最新版 dashscope SDK 或在系统环境变量中确保 `LANG` 为纯 ASCII 编码
+5. 检索结果不准确：尝试调整 `config_data.py` 中的混合检索权重参数
 
 ## 许可证
 MIT License

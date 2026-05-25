@@ -19,8 +19,8 @@ st.title("知识库更新服务")
 if 'service' not in st.session_state:
     st.session_state["service"] = KnowledgeBaseService()
 
-upload_file = st.file_uploader("请上传txt文件",
-                 type=["txt"],
+upload_file = st.file_uploader("请上传知识库文件（支持 txt / pdf / docx / pptx）",
+                 type=["txt", "pdf", "docx", "doc", "pptx", "xlsx"],
                  accept_multiple_files=False)# 仅接受一个文件的上传
 
 if upload_file:
@@ -29,9 +29,9 @@ if upload_file:
     file_type=upload_file.type
     st.subheader(f"文件名:{file_name}")
     st.write(f"格式{file_type} ｜大小:{file_size:.2f}KB.")
-    # 获取文件的内容 ->get_value->bytes->decode
-    text = upload_file.getvalue().decode("utf-8")
-    with st.spinner("载入知识库中。。。。"):
+    # 读取文件字节内容
+    file_bytes = upload_file.getvalue()
+    with st.spinner("正在提取文本并载入知识库中。。。。"):
         time.sleep(1)
-        result = st.session_state["service"].upload_by_str(text, file_name)
+        result = st.session_state["service"].upload_file(file_bytes, file_name)
         st.write(result)
