@@ -29,6 +29,10 @@
 │   ├── milvus_db.db
 │   ├── bm25_corpus.pkl
 │   └── uploads/        # 上传文件的原始内容（用于预览）
+├── resource/           # 运行截图
+│   ├── 登录页.png
+│   ├── 知识库上传页面.png
+│   └── 聊天页面.png
 ├── .gitignore
 ├── LICENSE
 ├── README.md
@@ -121,6 +125,12 @@ uv run python -m app.api.api_service
 6. 提问：在聊天页输入框中输入问题，按 Enter 发送
 7. 查看历史：侧边栏显示所有会话历史
 8. 知识库隔离：RAG 检索时仅检索你上传的文件 + 公共文件
+
+## 界面预览
+
+| 登录页面 | 知识库上传页面 | 聊天页面 |
+|:---:|:---:|:---:|
+| ![登录页](resource/登录页.png) | ![知识库上传页面](resource/知识库上传页面.png) | ![聊天页面](resource/聊天页面.png) |
 
 ## 注意事项
 1. 确保 `DASHSCOPE_API_KEY` 已正确配置
