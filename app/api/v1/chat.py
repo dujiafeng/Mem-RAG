@@ -55,6 +55,9 @@ async def chat_stream(
         stdout_capture = io.StringIO()
         full_out = ""
 
+        # 在调用链之前注入 user_id（绕过 LangChain config 传播问题）
+        rag.set_user_id(session_uuid, current_user.id)
+
         with redirect_stdout(stdout_capture):
             config = {
                 "configurable": {

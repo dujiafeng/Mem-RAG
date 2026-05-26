@@ -1,7 +1,7 @@
 """LLM 生成服务：调用模型、构建 prompt、管理超时。"""
 from __future__ import annotations
 
-from langchain_community.chat_models import ChatTongyi
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
 from app.core.prompts import (
@@ -16,9 +16,9 @@ from app.core.logger import logger
 class GenerationService:
     """LLM 生成服务。"""
 
-    def __init__(self, model_name: str = "qwen-max"):
-        self.model: ChatTongyi = get_chat_model(model_name)
-        self.lightweight: ChatTongyi = get_lightweight_chat_model()
+    def __init__(self, model_name: str | None = None):
+        self.model: BaseChatModel = get_chat_model(model_name)
+        self.lightweight: BaseChatModel = get_lightweight_chat_model()
 
     def build_rag_prompt(
         self,
