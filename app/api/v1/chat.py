@@ -12,8 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_rag_service, get_generation_service
 from app.db.postgres_client import get_db
-from app.models.models import ChatSession, ChatMessage
-from app.models.user import User
+from app.models.models import ChatSession, ChatMessage, User
 from app.services.rag_service import RAGService
 from app.services.generation_service import GenerationService
 from app.services.session_service import SessionService

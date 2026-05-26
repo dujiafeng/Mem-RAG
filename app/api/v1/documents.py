@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_document_service
 from app.db.postgres_client import get_db
 from app.models.models import KnowledgeFile, User
-from app.models.user import User
 from app.services.document_service import DocumentService
 
 router = APIRouter(prefix="/kb", tags=["知识库"])
