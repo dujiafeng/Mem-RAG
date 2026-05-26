@@ -1,6 +1,7 @@
 [project]
-name = "mem-rag-main"
-version = "0.1.0"
+name = "mem-rag"
+version = "2.0.0"
+description = "基于 LangChain + Milvus 的混合检索 RAG 系统，支持通义千问 / DeepSeek，含知识库管理与多会话对话"
 requires-python = ">=3.14"
 dependencies = [
     "aiomysql>=0.3.2",
