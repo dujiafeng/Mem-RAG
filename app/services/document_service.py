@@ -146,19 +146,7 @@ class DocumentService:
         finally:
             client.close()
 
-        # 3. 保存原始文件到磁盘（预览用）
-        self._save_raw_file(text, md5_hex)
-
-        # 4. 追加到 BM25
+        # 3. 追加到 BM25
         self.bm25_engine.extend_corpus(chunks)
 
         return len(chunks)
-
-    def _save_raw_file(self, text: str, md5_hex: str):
-        upload_dir = self.settings.UPLOAD_DIR
-        if not upload_dir:
-            return
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        path = upload_dir / f"{md5_hex}.txt"
-        path.write_text(text, encoding="utf-8")
-        logger.info(f"[Storage] 原始文件已保存: {path}")

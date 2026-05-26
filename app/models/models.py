@@ -49,4 +49,5 @@ class KnowledgeFile(Base):
     md5: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     is_shared: Mapped[bool] = mapped_column(Integer, default=0)
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    content: Mapped[str] = mapped_column(Text, nullable=True, comment="原始文件内容，用于预览")
     user = relationship("User", backref="knowledge_files")

@@ -68,7 +68,7 @@ async def upload_file(
         md5_hex=md5_hex,
     )
 
-    # 保存文件记录到 MySQL
+    # 保存文件记录到 MySQL（含原始内容，用于预览）
     db.add(
         KnowledgeFile(
             user_id=current_user.id,
@@ -76,6 +76,7 @@ async def upload_file(
             md5=md5_hex,
             chunk_count=chunk_count,
             is_shared=1 if share_flag else 0,
+            content=text,
         )
     )
     await db.commit()
@@ -191,10 +192,6 @@ async def preview_file(
     f = result.scalars().first()
     if not f:
         raise HTTPException(status_code=400, detail="文件不存在或无权访问")
-    from app.core.config import get_settings
-    settings = get_settings()
-    preview_path = settings.UPLOAD_DIR / f"{f.md5}.txt"
-    if not preview_path.exists():
-        raise HTTPException(status_code=404, detail="预览文件不存在")
-    text = preview_path.read_text(encoding="utf-8")
-    return {"status": "success", "data": {"content": text[:2000]}}
+    if not f.content:
+        raise HTTPException(status_code=404, detail="预览内容不存在")
+    return {"status": "success", "data": {"content": f.content[:2000]}}
