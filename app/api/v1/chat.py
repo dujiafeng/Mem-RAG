@@ -5,7 +5,7 @@ import asyncio
 import io
 from contextlib import redirect_stdout
 
-from fastapi import APIRouter, Cookie, Depends
+from fastapi import APIRouter, Body, Cookie, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,8 +23,8 @@ router = APIRouter(prefix="/chat", tags=["对话"])
 
 @router.post("")
 async def chat_stream(
-    session_uuid: str,
-    input_text: str,
+    session_uuid: str = Body(..., embed=True),
+    input_text: str = Body(..., embed=True),
     current_user: User = Depends(get_current_user),
     rag: RAGService = Depends(get_rag_service),
     gen: GenerationService = Depends(get_generation_service),

@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # ── 数据库 ──
     ASYNC_DATABASE_URL: str = (
-        "mysql+aiomysql://root:***@localhost:3306/mem_rag?charset=utf8"
+        "mysql+aiomysql://root:dujiafeng@localhost:3306/mem_rag?charset=utf8"
     )
     SALT_SUFFIX: str = "MYRAG"
 

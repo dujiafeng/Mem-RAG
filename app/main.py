@@ -12,16 +12,19 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1 import auth, chat, sessions, documents
+from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logger import logger
-from app.models.models import Base
-from app.db.postgres_client import async_engine
+from app.db.postgres_client import get_db, async_engine
+from app.models.models import Base, ChatSession, ChatMessage
 
 
 def create_app() -> FastAPI:
@@ -48,6 +51,57 @@ def create_app() -> FastAPI:
     app.include_router(chat.router)
     app.include_router(sessions.router)
     app.include_router(documents.router)
+
+    # ── 向后兼容的旧路由别名 ──
+    @app.get("/chat/{session_uuid}")
+    async def legacy_get_history(
+        session_uuid: str,
+        current_user=Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ):
+        """旧版 GET /chat/{uuid} → 新版 GET /sessions/{uuid}"""
+        result = await db.execute(
+            select(ChatSession).where(
+                ChatSession.session_uuid == session_uuid
+            )
+        )
+        session = result.scalars().first()
+        if not session:
+            raise HTTPException(status_code=404)
+
+        msg_res = await db.execute(
+            select(ChatMessage)
+            .where(ChatMessage.session_id == session.id)
+            .order_by(ChatMessage.create_time)
+        )
+        return {
+            "status": "success",
+            "data": [
+                {
+                    "user_input": m.user_input,
+                    "raw_output": m.raw_output,
+                }
+                for m in msg_res.scalars().all()
+            ],
+        }
+
+    @app.delete("/delete/{session_uuid}")
+    async def legacy_delete_session(
+        session_uuid: str,
+        current_user=Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ):
+        """旧版 DELETE /delete/{uuid} → 新版 DELETE /sessions/{uuid}"""
+        result = await db.execute(
+            select(ChatSession).where(
+                ChatSession.session_uuid == session_uuid
+            )
+        )
+        session = result.scalars().first()
+        if session:
+            await db.delete(session)
+            await db.commit()
+        return {"status": "success"}
 
     # ── 静态文件 ──
     project_root = settings.PROJECT_ROOT
