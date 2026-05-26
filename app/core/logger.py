@@ -29,11 +29,12 @@ def get_logger(name: str = "rag_system") -> logging.Logger:
     if logger.handlers:
         return logger  # 避免重复添加
 
-    # 文件处理器
+    # 文件处理器（UTF-8 编码，防止中文乱码）
     file_handler = RotatingFileHandler(
         settings.LOG_DIR / f"{name}.log",
         maxBytes=10 * 1024 * 1024,  # 10 MB
         backupCount=5,
+        encoding="utf-8",
     )
     file_handler.setLevel(logging.DEBUG)
 
