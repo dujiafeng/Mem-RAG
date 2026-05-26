@@ -1,38 +1,61 @@
+"""结构化日志。"""
+
 import logging
-import os
+import uuid
 from logging.handlers import RotatingFileHandler
+from contextvars import ContextVar
 
-# 确保日志目录存在
-log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "logs")
-os.makedirs(log_dir, exist_ok=True)
+from app.core.config import get_settings
 
-# 创建 logger
-logger = logging.getLogger("rag_system")
-logger.setLevel(logging.DEBUG)
+# 每个请求的 trace_id
+trace_id_var: ContextVar[str] = ContextVar("trace_id", default="")
 
-# 创建文件处理器
-file_handler = RotatingFileHandler(
-    os.path.join(log_dir, "rag_system.log"),
-    maxBytes=10 * 1024 * 1024,  # 10MB
-    backupCount=5
-)
-file_handler.setLevel(logging.DEBUG)
 
-# 创建控制台处理器
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
+class TraceIDFilter(logging.Filter):
+    """向每条日志注入 trace_id。"""
 
-# 设置格式化器
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-file_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.trace_id = trace_id_var.get() or "-"
+        return True
 
-# 添加处理器到 logger
-if not logger.handlers:
+
+def get_logger(name: str = "rag_system") -> logging.Logger:
+    settings = get_settings()
+    settings.LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+
+    if logger.handlers:
+        return logger  # 避免重复添加
+
+    # 文件处理器
+    file_handler = RotatingFileHandler(
+        settings.LOG_DIR / f"{name}.log",
+        maxBytes=10 * 1024 * 1024,  # 10 MB
+        backupCount=5,
+    )
+    file_handler.setLevel(logging.DEBUG)
+
+    # 控制台处理器
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+
+    # 格式化
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(trace_id)s %(name)s - %(message)s"
+    )
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+
+    file_handler.addFilter(TraceIDFilter())
+    console_handler.addFilter(TraceIDFilter())
+
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
-# 导出 logger
-__all__ = ['logger']
+    return logger
+
+
+# 默认 logger
+logger = get_logger()
