@@ -17,14 +17,14 @@
 │   │   ├── security.py       # 密码哈希
 │   │   ├── exceptions.py     # 统一异常类 + 全局处理器
 │   │   ├── logger.py         # 结构化日志（含 trace_id）
-│   │   ├── prompts.py        # RAG 提示词模板
+│   │   ├── prompts.py        # 提示词模板（RAG + 意图分类）
 │   │   └── text_splitter.py  # 智能文本分块器
 │   ├── db/                   # 数据访问层
 │   │   ├── milvus_client.py  # Milvus 连接封装（单例）
 │   │   └── postgres_client.py# MySQL/PostgreSQL 异步会话管理
 │   ├── integrations/         # 外部服务适配器
 │   │   ├── embedding.py      # Embedding 模型工厂
-│   │   ├── llm.py            # LLM 模型工厂（通义千问）
+│   │   ├── llm.py            # LLM 模型工厂 + ModelRouter 双模型动态路由
 │   │   └── bm25.py           # BM25 全文检索引擎
 │   ├── services/             # 业务逻辑层
 │   │   ├── rag_service.py    # RAG 主流程编排（检索 + 生成）
@@ -79,7 +79,12 @@
     - 注册/登录功能（Cookie 会话）
     - 会话权限管理
     - 知识库文件权限管理
-5. 前端界面：
+5. **动态模型路由**：
+    - 运行时根据问题意图自动选择模型
+    - **闲聊**（问候、日常聊天）→ 通义千问 `qwen-max`
+    - **知识库问答**（文档查询、资料总结）→ DeepSeek `deepseek-chat`
+    - 两级分类策略：关键词快检（零成本）+ 轻量 LLM 兜底
+6. 前端界面：
     - Vue 3 + Tailwind CSS，三页面独立 SPA
     - Markdown 渲染回复
     - 知识库文件管理（上传/预览/删除/共享）
@@ -87,7 +92,7 @@
 ## 技术栈
 - 后端：FastAPI, SQLAlchemy, Milvus
 - 前端：Vue 3, Tailwind CSS
-- AI 模型：阿里云 DashScope（通义千问）
+- AI 模型：阿里云 DashScope（通义千问）+ DeepSeek（双模型动态路由）
 - 文档解析：Docling（支持 PDF / Word / PPT / Excel 等格式文本提取）
 - 向量存储：Milvus（Standalone）
 - 检索策略：语义分割 + RRF 倒数秩融合
@@ -106,7 +111,9 @@ sequenceDiagram
     participant Retrieval as 检索服务
     participant VectorDB as Milvus (向量)
     participant FullText as BM25 (关键词)
-    participant LLM as 通义千问 API
+    participant Router as DynamicModelRunnable
+    participant Qwen as 通义千问 (闲聊)
+    participant DeepSeek as DeepSeek (知识库)
     participant SessionDB as MySQL (会话历史)
 
     User->>Frontend: 输入问题
@@ -128,8 +135,15 @@ sequenceDiagram
     Retrieval-->>RAGService: final_context
 
     RAGService->>RAGService: 构建 Prompt (system + history + context + question)
-    RAGService->>LLM: astream (生成回答)
-    LLM-->>RAGService: answer (流式)
+    RAGService->>Router: 拦截模型调用，意图分类
+    Router->>Router: 关键词快检 → 轻量 LLM 兜底
+    alt 闲聊 (chitchat)
+        Router->>Qwen: qwen-max 生成回答
+        Qwen-->>RAGService: answer (流式)
+    else 知识库问答 (kb_qa)
+        Router->>DeepSeek: deepseek-chat 生成回答
+        DeepSeek-->>RAGService: answer (流式)
+    end
 
     RAGService-->>API: 流式返回 answer
     API-->>Frontend: text/event-stream
@@ -183,6 +197,8 @@ sequenceDiagram
 - Python >= 3.12
 - MySQL 8.0+
 - 依赖详见 `pyproject.toml`，额外安装 `docling` 用于 PDF/Word 文档解析
+- DashScope API Key（通义千问 + 嵌入向量）
+- DeepSeek API Key（知识库问答，可选但建议配置）
 
 ## 运行准备
 
@@ -200,8 +216,19 @@ pip install -r requirements.txt
 
 方式一（推荐）：创建 `.env` 文件（支持 Pydantic Settings 自动加载）
 ```env
+# ── LLM ──
+# 通义千问（用于闲聊 + 嵌入向量）
 DASHSCOPE_API_KEY=sk-你的DashScope_API_KEY
-ASYNC_DATABASE_URL=mysql+aiomysql://root:密码@localhost:3306/mem_rag?charset=utf8
+# DeepSeek（用于知识库问答）
+DEEPSEEK_API_KEY=sk-你的DeepSeek_API_KEY
+DEEPSEEK_API_BASE=https://api.deepseek.com
+
+# ── 数据库 ──
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=你的MySQL密码
+DB_NAME=mem_rag
 ```
 
 方式二：直接编辑 `app/core/config.py`，修改默认值。
@@ -245,14 +272,15 @@ cd app && python main.py
 | ![登录页](resource/登录页.png) | ![知识库上传页面](resource/知识库上传页面.png) | ![聊天页面](resource/聊天页面.png) |
 
 ## 注意事项
-1. 确保 `DASHSCOPE_API_KEY` 已正确配置
-2. 确保 MySQL 服务已启动且 `mem_rag` 数据库已创建
-3. 确保 Milvus 服务已启动（localhost:19530）
-4. 首次运行时，系统会自动创建数据库表
-5. 上传文件时，系统会自动计算 MD5 去重，重复内容会跳过
-6. 所有 Python 命令需从项目根目录运行，使用 `-m` 选项
-7. 若端口 8000 被占用，需先终止占用进程再重启服务
-8. 日志文件路径：`logs/rag_system.log`，控制台输出 INFO 及以上级别
+1. 确保 `DASHSCOPE_API_KEY` 已正确配置（通义千问闲聊 + 文本嵌入向量都需要）
+2. 确保 `DEEPSEEK_API_KEY` 已正确配置（知识库问答使用 DeepSeek 模型）
+3. 确保 MySQL 服务已启动且 `mem_rag` 数据库已创建
+4. 确保 Milvus 服务已启动（localhost:19530）
+5. 首次运行时，系统会自动创建数据库表
+6. 上传文件时，系统会自动计算 MD5 去重，重复内容会跳过
+7. 所有 Python 命令需从项目根目录运行，使用 `-m` 选项
+8. 若端口 8000 被占用，需先终止占用进程再重启服务
+9. 日志文件路径：`logs/rag_system.log`，控制台输出 INFO 及以上级别
 
 ## 系统 API 接口说明
 所有需要身份验证的接口通过 Cookie（`session_id`）进行会话识别。

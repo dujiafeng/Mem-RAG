@@ -48,3 +48,14 @@ rag_prompt_template = ChatPromptTemplate.from_messages(
         ("human", "{input}")
     ]
 )
+
+# 意图分类提示词（ModelRouter.classify_intent 使用）
+intent_classification_prompt = (
+    "判断以下用户问题是「闲聊」还是「知识库问答」。\n\n"
+    "闲聊：问候、自我介绍、日常聊天、情感交流、天气、"
+    "无特定知识需求的话题。\n"
+    "知识库问答：用户询问文档、资料、具体知识、技术问题"
+    "等需要参考本地知识库的问题。\n\n"
+    "用户问题：{question}\n\n"
+    "只回复一个词：chitchat 或 kb_qa"
+)
