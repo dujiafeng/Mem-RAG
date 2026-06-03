@@ -11,20 +11,15 @@ load_dotenv()
 
 class Settings(BaseSettings):
     # ── LLM 供应商选择 ──
-    # 可选值: "qwen" | "deepseek"
-    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "qwen")
+    LLM_PROVIDER: str = "qwen"
 
     # ── DashScope (通义千问) ──
-    DASHSCOPE_API_KEY: str = os.getenv(
-        "DASHSCOPE_API_KEY", "sk-你的DashScope_API_KEY"
-    )
+    DASHSCOPE_API_KEY: str = ""
     QWEN_CHAT_MODEL: str = "qwen-max"
     QWEN_LIGHTWEIGHT_MODEL: str = "qwen-turbo"
 
     # ── DeepSeek ──
-    DEEPSEEK_API_KEY: str = os.getenv(
-        "DEEPSEEK_API_KEY", "sk-你的DeepSeek_API_KEY"
-    )
+    DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_API_BASE: str = "https://api.deepseek.com"
     DEEPSEEK_CHAT_MODEL: str = "deepseek-chat"
     DEEPSEEK_LIGHTWEIGHT_MODEL: str = "deepseek-chat"
@@ -41,30 +36,30 @@ class Settings(BaseSettings):
 
     # ── 混合检索 ──
     BM25_CORPUS_PATH: str = "./database/bm25_corpus.pkl"
-    SIMILARITY_THRESHOLD: int = 3  # 最终返回文档数量 (K)
+    SIMILARITY_THRESHOLD: int = 3
     DENSE_WEIGHT: float = 0.7
     SPARSE_WEIGHT: float = 0.3
+    RRF_K: int = 60
+    RRF_SCORE_THRESHOLD: float = 97.0
 
     # ── 文本限制 ──
     MAX_SPLIT_CHAR_NUMBER: int = 1000
 
-    # ── 数据库（从环境变量读取） ──
-    DB_HOST: str = os.getenv("DB_HOST", "localhost")
-    DB_PORT: str = os.getenv("DB_PORT", "3306")
-    DB_USER: str = os.getenv("DB_USER", "root")
-    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
-    DB_NAME: str = os.getenv("DB_NAME", "mem_rag")
+    # ── 数据库 ──
+    DB_HOST: str = "localhost"
+    DB_PORT: str = "3306"
+    DB_USER: str = "root"
+    DB_PASSWORD: str = ""
+    DB_NAME: str = "mem_rag"
 
-    SALT_SUFFIX: str = "MYRAG"
+    # ── JWT ──
+    JWT_SECRET_KEY: str = ""
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 1440
 
     # ── 路径 ──
     PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent
     LOG_DIR: Path = PROJECT_ROOT / "logs"
-    UPLOAD_DIR: Path = (
-        Path(BM25_CORPUS_PATH).resolve().parent / "uploads"
-        if BM25_CORPUS_PATH
-        else PROJECT_ROOT / "database" / "uploads"
-    )
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
@@ -86,4 +81,11 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    if not settings.JWT_SECRET_KEY:
+        import secrets
+        settings.JWT_SECRET_KEY = secrets.token_hex(32)
+    if not settings.DASHSCOPE_API_KEY and not settings.DEEPSEEK_API_KEY:
+        import warnings
+        warnings.warn("未配置任何 API Key (DASHSCOPE_API_KEY / DEEPSEEK_API_KEY)")
+    return settings

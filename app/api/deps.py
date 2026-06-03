@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.postgres_client import get_db
+from app.db.db_client import get_db
 from app.models.models import User
 from app.services.rag_service import RAGService
 from app.services.document_service import DocumentService

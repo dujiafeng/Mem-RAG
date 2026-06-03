@@ -7,7 +7,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.postgres_client import get_db
+from app.db.db_client import get_db
 from app.models.models import User
 from app.core.security import hash_password, verify_password
 

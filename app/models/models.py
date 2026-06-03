@@ -1,13 +1,15 @@
-# 数据库模型定义
-
 import datetime
-from sqlalchemy import String, Integer, Text, ForeignKey, DateTime, func, desc
+from sqlalchemy import String, Integer, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
-    create_time: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
-    update_time: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    create_time: Mapped[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+    update_time: Mapped[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
 
 
 class User(Base):
@@ -15,24 +17,31 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    last_cookie: Mapped[str] = mapped_column(String(255), nullable=True)
-    sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship(
+        "ChatSession", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    session_uuid: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)
+    session_uuid: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False
+    )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     title: Mapped[str] = mapped_column(String(255), default="新对话")
     user = relationship("User", back_populates="sessions")
-    messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
+    messages = relationship(
+        "ChatMessage", back_populates="session", cascade="all, delete-orphan"
+    )
 
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    session_id: Mapped[int] = mapped_column(ForeignKey("chat_sessions.id"), nullable=False)
+    session_id: Mapped[int] = mapped_column(
+        ForeignKey("chat_sessions.id"), nullable=False
+    )
     user_input: Mapped[str] = mapped_column(Text)
     raw_output: Mapped[str] = mapped_column(Text)
     output_uncode: Mapped[str] = mapped_column(Text, nullable=True)
@@ -47,7 +56,9 @@ class KnowledgeFile(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     md5: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
-    is_shared: Mapped[bool] = mapped_column(Integer, default=0)
+    is_shared: Mapped[int] = mapped_column(Integer, default=0)
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
-    content: Mapped[str] = mapped_column(Text, nullable=True, comment="原始文件内容，用于预览")
+    content: Mapped[str] = mapped_column(
+        Text, nullable=True, comment="原始文件内容，用于预览"
+    )
     user = relationship("User", backref="knowledge_files")

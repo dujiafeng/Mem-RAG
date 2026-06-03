@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_rag_service, get_generation_service
-from app.db.postgres_client import get_db
+from app.db.db_client import get_db
 from app.models.models import ChatSession, ChatMessage, User
 from app.services.rag_service import RAGService
 from app.services.generation_service import GenerationService
@@ -106,7 +106,7 @@ async def _save_after_chat(
     gen: GenerationService,
 ):
     """保存聊天记录到数据库。"""
-    from app.db.postgres_client import AsyncSessionLocal
+    from app.db.db_client import AsyncSessionLocal
     from app.models.models import ChatMessage
     from sqlalchemy import func, update
 
