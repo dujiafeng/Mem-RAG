@@ -5,7 +5,6 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
 from app.core.prompts import (
-    rag_system_prompt,
     title_generation_prompt,
     summary_generation_prompt,
 )
@@ -19,14 +18,6 @@ class GenerationService:
     def __init__(self, model_name: str | None = None):
         self.model: BaseChatModel = get_chat_model(model_name)
         self.lightweight: BaseChatModel = get_lightweight_chat_model()
-
-    def build_rag_prompt(
-        self,
-        question: str,
-        context: str,
-    ) -> str:
-        """构建 RAG 回答 prompt（含 context 的系统消息）。"""
-        return rag_system_prompt.format(context=context)
 
     async def generate_title(self, user_input: str) -> str:
         """生成对话标题（10字以内）。"""
