@@ -49,6 +49,22 @@ class MilvusClientWrapper:
             self._client = MilvusClient(settings.MILVUS_URI, grpc_options=grpc_options)
             logger.info("[Milvus] 成功重连")
 
+    def delete_by_md5(self, md5_hex: str) -> int:
+        from app.core.config import get_settings
+        settings = get_settings()
+        try:
+            expr = f'md5 == "{md5_hex}"'
+            res = self.client.delete(
+                collection_name=settings.COLLECTION_NAME,
+                filter=expr,
+            )
+            count = len(res) if res else 0
+            logger.info(f"[Milvus] 已删除 md5={md5_hex[:8]}... ({count} 条)")
+            return count
+        except Exception as e:
+            logger.error(f"[Milvus] 删除失败: {e}")
+            return 0
+
     def close(self):
         if self._client:
             self._client.close()

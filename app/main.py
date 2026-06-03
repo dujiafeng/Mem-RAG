@@ -23,7 +23,7 @@ from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logger import logger
-from app.db.postgres_client import get_db, async_engine
+from app.db.db_client import get_db, async_engine
 from app.models.models import Base, ChatSession, ChatMessage
 
 
@@ -38,9 +38,12 @@ def create_app() -> FastAPI:
     )
 
     # ── 中间件 ──
+    origins = [
+        "http://localhost:8501",
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

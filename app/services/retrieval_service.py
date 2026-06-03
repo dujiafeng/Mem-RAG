@@ -30,7 +30,9 @@ class RRFRetriever(BaseRetriever):
     """RRF 倒数秩融合检索器。"""
 
     retrievers: list
-    k: int = 60
+    rrf_k: int = 60
+    score_threshold: float = 97.0
+    top_k: int = 3
 
     def _get_relevant_documents(self, query: str) -> list[Document]:
         all_results = []
@@ -45,7 +47,7 @@ class RRFRetriever(BaseRetriever):
             doc_id = str(hash(doc.page_content))
             if doc_id not in doc_scores:
                 doc_scores[doc_id] = {"doc": doc, "score": 0}
-            doc_scores[doc_id]["score"] += 1 / (rank + self.k)
+            doc_scores[doc_id]["score"] += 1 / (rank + self.rrf_k)
 
         sorted_items = sorted(
             doc_scores.values(), key=lambda x: x["score"], reverse=True
@@ -58,9 +60,9 @@ class RRFRetriever(BaseRetriever):
         relevant_docs = []
         for item in sorted_items:
             normalized = (item["score"] / max_score) * 100
-            if normalized >= 97:
+            if normalized >= self.score_threshold:
                 relevant_docs.append(item["doc"])
-                if len(relevant_docs) >= 3:
+                if len(relevant_docs) >= self.top_k:
                     break
         return relevant_docs
 
@@ -146,7 +148,9 @@ class RetrievalService:
             logger.info("[Hybrid] 启动 RRF 倒数秩融合策略")
             return RRFRetriever(
                 retrievers=[dense, sparse],
-                k=60,
+                rrf_k=self.settings.RRF_K,
+                score_threshold=self.settings.RRF_SCORE_THRESHOLD,
+                top_k=self.settings.SIMILARITY_THRESHOLD,
             )
 
         return dense

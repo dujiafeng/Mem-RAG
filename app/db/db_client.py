@@ -1,11 +1,13 @@
-"""PostgreSQL 异步会话管理（SQLAlchemy async）。"""
+"""数据库异步会话管理（SQLAlchemy async / sync）。"""
 from __future__ import annotations
 
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.orm import sessionmaker
 
 from app.core.config import get_settings
 
@@ -24,9 +26,12 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
+sync_engine = create_engine(settings.SYNC_DATABASE_URL, echo=False)
+SyncSessionLocal = sessionmaker(bind=sync_engine)
+
 
 async def get_db() -> AsyncSession:
-    """FastAPI Depends: 获取数据库会话。"""
+    """FastAPI Depends: 获取异步数据库会话。"""
     async with AsyncSessionLocal() as session:
         try:
             yield session

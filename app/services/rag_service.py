@@ -7,7 +7,6 @@ from langchain_core.runnables import RunnableLambda, RunnableWithMessageHistory
 from app.core.logger import logger
 from app.core.prompts import rag_prompt_template
 from app.services.retrieval_service import RetrievalService
-from app.services.generation_service import GenerationService
 from app.services.memory_service import MemoryService
 from app.integrations.llm import ModelRouter, DynamicModelRunnable
 
@@ -19,7 +18,6 @@ class RAGService:
     """
     def __init__(self, model_name: str | None = None):
         self.retrieval = RetrievalService()
-        self.generation = GenerationService(model_name=model_name)
         self.memory = MemoryService()
         # 双模型路由
         self.model_router = ModelRouter()

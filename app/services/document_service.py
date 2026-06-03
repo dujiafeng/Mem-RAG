@@ -147,6 +147,6 @@ class DocumentService:
             client.close()
 
         # 3. 追加到 BM25
-        self.bm25_engine.extend_corpus(chunks)
+        self.bm25_engine.extend_corpus(chunks, md5_hex=md5_hex)
 
         return len(chunks)

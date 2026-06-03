@@ -1,0 +1,25 @@
+services:
+  milvus:
+    image: milvusdb/milvus:v2.5.5
+    ports:
+      - "19530:19530"
+    volumes:
+      - milvus_data:/var/lib/milvus
+    environment:
+      ETCD_USE_EMBED: "true"
+      ETCD_DATA_DIR: /var/lib/milvus/etcd
+      MINIO_DATA_DIR: /var/lib/milvus/minio
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: memrag_dev
+      MYSQL_DATABASE: mem_rag
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  milvus_data:
+  mysql_data:
