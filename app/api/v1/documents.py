@@ -136,6 +136,7 @@ async def delete_file(
     file_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    doc_service: DocumentService = Depends(get_document_service),
 ):
     from sqlalchemy import select
     result = await db.execute(
@@ -147,6 +148,16 @@ async def delete_file(
     f = result.scalars().first()
     if not f:
         raise HTTPException(status_code=400, detail="文件不存在或无权删除")
+
+    # 清理 Milvus 向量
+    from app.db.milvus_client import MilvusClientWrapper
+    milvus = MilvusClientWrapper()
+    milvus.delete_by_md5(f.md5)
+
+    # 清理 BM25 语料
+    doc_service.bm25_engine.delete_by_md5(f.md5)
+
+    # 删除数据库记录
     await db.delete(f)
     await db.commit()
     return {"status": "success", "message": "文件已删除"}
